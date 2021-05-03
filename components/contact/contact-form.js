@@ -1,27 +1,89 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import Notification from "../ui/notification";
 
 import styles from "./contact-form.module.css";
 
+async function sendContactData(contactData) {
+  const response = await fetch(`/api/contact`, {
+    method: `POST`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(contactData),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || `Something went wrong!`);
+  }
+}
+
+function getNotificationData(status, error) {
+  switch (status) {
+    case `pending`:
+      return {
+        status,
+        title: `Sending message...`,
+        message: `Your message is on its way!`,
+      };
+    case `success`:
+      return {
+        status,
+        title: `Success!`,
+        message: `Message sent successfully!`,
+      };
+    case `error`:
+      return {
+        status,
+        title: `Error!`,
+        message: error || `Something went wrong!`,
+      };
+    default:
+      return null;
+  }
+}
+
 function ContactForm() {
+  const [requestStatus, setRequestStatus] = useState(null);
+  const [requestError, setRequestError] = useState(null);
+
   const emailInputRef = useRef();
   const nameInputRef = useRef();
   const messageInputRef = useRef();
 
-  function sendMessageHandler(evt) {
+  useEffect(() => {
+    if (requestStatus === `success` || requestStatus === `error`) {
+      const timer = setTimeout(() => {
+        setRequestStatus(null);
+        setRequestError(null);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [requestStatus]);
+
+  async function sendMessageHandler(evt) {
     evt.preventDefault();
 
-    fetch(`/api/contact`, {
-      method: `POST`,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    setRequestStatus(`pending`);
+
+    try {
+      await sendContactData({
         email: emailInputRef.current.value,
         name: nameInputRef.current.value,
         message: messageInputRef.current.value,
-      }),
-    });
+      });
+
+      setRequestStatus(`success`);
+    } catch (error) {
+      setRequestError(error.message);
+      setRequestStatus(`error`);
+    }
   }
+
+  const notification = getNotificationData(requestStatus, requestError);
 
   return (
     <section className={styles.contact}>
@@ -45,6 +107,7 @@ function ContactForm() {
           <button>Send Message</button>
         </div>
       </form>
+      {notification && <Notification {...notification} />}
     </section>
   );
 }
