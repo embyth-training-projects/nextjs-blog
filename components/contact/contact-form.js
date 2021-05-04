@@ -77,6 +77,8 @@ function ContactForm() {
       });
 
       setRequestStatus(`success`);
+
+      evt.target.reset();
     } catch (error) {
       setRequestError(error.message);
       setRequestStatus(`error`);
